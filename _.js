@@ -21,6 +21,10 @@ function isObject( x ){
 		  ;
 }
 
+function arrayMapFill(n,mapFcn){
+	return n>0? Array(n).fill().map(mapFcn):[];
+}
+
 /**
  * Shallow copy of enumerable, own properties onto the target object
  * Copies full descriptors - that is it includes properties
@@ -75,7 +79,9 @@ function printNode(node, depth=0){
 		return pv;
 	},'');
 
-	return  str.length>0?`{${str} \n${indent}}`:'{}';
+	return  Array.isArray(node)?  str.length>0?`[${str} \n${indent}]`:'[]'
+										:  str.length>0?`{${str} \n${indent}}`:'{}'
+										;
 }
 
-module.exports = {isObject,isFunction, completeAssign, createObject, printNode};
+module.exports = {isObject,isFunction, arrayMapFill, completeAssign, createObject, printNode};

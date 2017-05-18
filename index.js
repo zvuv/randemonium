@@ -4,17 +4,17 @@
  *@module ranTree
  */
 
-const _=require('./_'),
-		rand = Math.random
-		;
+const _ = require( './_' ),
+	  rand = Math.random
+	  ;
 
-function RanBool(pTrue=0.5){
-	return ()=>rand()<pTrue;
+function RanBool( pTrue = 0.5 ){
+	return () => rand() < pTrue;
 }
 
 function RanStr( nChars = 6 ){
 	return function(){
-		let str = ''; 
+		let str = '';
 		while( str.length < nChars ){
 			str += rand().toString( 36 ).slice( 2 );
 		}
@@ -28,154 +28,173 @@ function RanInt( nDigits = 6 ){
 	};
 }
 
-function RanDateStr({start=new Date('01/01/1000'),end=new Date('01/01/3000')}={}){
+function RanDateStr( { start = new Date( '01/01/1000' ), end = new Date( '01/01/3000' ) }={} ){
 	const startMs = start.getTime(),
-		   spanMs  = end.getTime()-startMs
-			;
+		  spanMs = end.getTime()-startMs
+		  ;
 	return function(){
-		const d=new Date(startMs+rand()*spanMs),
-		    [year,month,day] = d.toJSON().split(/-|T/)
-		;
+		const d = new Date( startMs+rand()*spanMs ),
+			  [year,month,day] = d.toJSON().split( /-|T/ )
+			  ;
 
 		return `${month}/${day}/${year}`;
-	};			
+	};
 }
 
+function RanElement( array, weights ){
+	if( !(array && array.length ) ){
+		throw new RangeError( 'array parameter undefined or empty' );
+	}
 
-function RanElement(array,weights){
-	if( !(array && array.length )){
-		throw new RangeError('array parameter undefined or empty');
-	} 
-	
 	const len = array.length;
 
 	//uniform probability weights.......................
-	if(!(weights && weights.length)){
+	if( !(weights && weights.length) ){
 		return function(){
-			const index = Math.floor(rand()*len);
+			const index = Math.floor( rand()*len );
 			return array[index];
 		};
 	}
 
-	if(weights.length !== len){
-		throw new RangeError('weights array and elements array must be the same length');
+	if( weights.length !== len ){
+		throw new RangeError( 'weights array and elements array must be the same length' );
 	}
 
 	//build a cumulative density function vector  (cdf)
-	const  summer={sum:0},
-		  cumWts = weights.map( function(w){ return this.sum += w;}, summer), 
-		  p=1/summer.sum, 
-		  cdf = cumWts.map(w=>w*p)//normalize
-		  ; 
+	const summer = { sum: 0 },
+		  cumWts = weights.map( function( w ){ return this.sum += w;}, summer ),
+		  p = 1/summer.sum,
+		  cdf = cumWts.map( w => w*p )//normalize
+		  ;
 
 	return function(){
 		const r = rand(),
-		index = cdf.findIndex(e=>e>r)
-		; 
+			  index = cdf.findIndex( e => e > r )
+			  ;
 
 		return array[index];
 	};
 
 }
 
-function RanCall(context, funcs,wts){
-	if(!funcs.every(_.isFunction)){
-		throw new TypeError (`non function value in funcs array`);
+function RanCall( context, funcs, wts ){
+	if( !funcs.every( _.isFunction ) ){
+		throw new TypeError( `non function value in funcs array` );
 	}
 
-	const ranFunc=RanElement(funcs,wts);
+	const ranFunc = RanElement( funcs, wts );
 
-	return function(...args){
+	return function( ...args ){
 		const func = ranFunc();
-		return func.call(context, ...args);
+		return func.call( context, ...args );
 	};
 }
 
-const BaseNodeMaker ={
-	maxDepth     : 5,
-	maxWidth     : 5,
-	propName:RanStr(),
+const BaseNodeMaker = {
+	get baseNode(){ return BaseNodeMaker;},
+	maxDepth: 5,
+	maxWidth: 5,
+	propName: RanStr(),
 
-	Builder( depth ){ 
-		const node = this.EmptyNode(),
-		addChild = this.AddChild(node)
-		;
+	Builder( depth ){
+		const node = this.EmptyNode();
 
-		if(depth>0){ 
-			const nProps = rand()*this.maxWidth;
-			for( let j = 0; j < nProps; j++ ){ 
-				addChild(this.propName(),this.NewChild(depth-1));
-			}
+		if( depth > 0 ){
+			const nProps = Math.round( rand()*this.maxWidth ),
+				  children = this.newChildren( nProps, depth-1 )
+				  ;
+			this.addChildren( node, children );
 		}
 
 		return node;
 	},
-	
-	//this method redefines itself.......................
-	NewChild(depth){ 
-		const ranChild = RanCall( this, this.children, this.childWeights );
 
-		this.NewChild =  (depth)=>ranChild(depth);
-		return ranChild(depth);
-	},
-	NewChildren(n, depth){
-		const ranChild = RanCall( this, this.children, this.childWeights );
-		
-		this.NewChildren = function(n,depth){
-			return Array(n)
-							.fill()
-							.map(()=>ranChild(depth))
-							;
-		};
-	},
-
-	
 	//.......................................................
 	//These properties are required by builder and newchild and 
 	//must be overriden by the application
 	//.......................................................
-	AddChildren(node){
-		throw new ReferenceError('method AddChild is not implemented');
+
+	addChildren( node, list ){
+		throw new ReferenceError( 'method AddChild is not implemented' );
 	},
-	AddChild(node){
-		throw new ReferenceError('method AddChild is not implemented');
+
+	// Generate a list of child nodes
+	newChildren( nChildren, depth ){
+		throw new ReferenceError( 'method newChildren is not implemented' );
 	},
+
+	// Factory for new, empty nodes
 	EmptyNode(){
-		throw new ReferenceError('method EmptyNode is not implemented');
-	}, 
-	 get children(){
-		throw new ReferenceError('property children is not implemented');
-	 },
-	 get childWeights(){
-		throw new ReferenceError('property childWeights is not implemented');
-	 }
-};
-
-const ObjNodeMaker={
-	 get children(){
-		return [this.Builder,RanInt(), RanStr(),RanBool(),RanDateStr()];
-	} ,
-	childWeights:[3,1,1,1,1] ,//[] for uniform weights
-
-	AddChildren(node){
-		return (function(nChildren, depth){
-			Array(nChildren).fill().map();
-		}).bind(node);
-	},
-	AddChild(node){
-		return (function(key,value){ node[key]=value; }).bind(node);
+		throw new ReferenceError( 'method EmptyNode is not implemented' );
 	},
 
-	EmptyNode(){ return Object.create(null);}
+	// List of factory functions for random selection
+	// Used by newChildren
+	get childList(){
+		throw new ReferenceError( 'property childList is not implemented' );
+	},
+	//
+	// Weight the selection from  'childList'
+	// Used by newChildren
+	get childWeights(){
+		throw new ReferenceError( 'property childWeights is not implemented' );
+	}
 };
 
-function RanObj(config={}){
-	const proto = _.createObject(BaseNodeMaker,ObjNodeMaker),
-			NodeBuilder= _.createObject(proto,config)
-	;
+const ObjNodeMaker = {
+	get objNode(){return ObjNodeMaker; },
+	//
+	// List of factory functions for random selection
+	get childList(){
+		return [this.Builder, RanInt(), RanStr(), RanBool(), RanDateStr()];
+	},
+	// Weight the selection from  'childList'
+	childWeights: [3, 1, 1, 1, 1],//[] for uniform weights
 
-	return ()=>NodeBuilder.Builder(NodeBuilder.maxDepth-1);
+	newChildren( n, depth ){
+		const ranChild = RanCall( this, this.childList, this.childWeights );
+
+		this.newChildren = function( n, depth ){
+			//return n>0? Array(n).fill().map(()=>ranChild(depth)): [] ;
+			return _.arrayMapFill( n, () => ranChild( depth ) );
+		};
+
+		return this.newChildren( n, depth );
+	},
+
+	addChildren( node, children ){
+		const propName = RanStr();
+
+		this.addChildren = function( node, children ){
+			children.forEach( child => node[propName()] = child );
+		};
+
+		this.addChildren( node, children );
+	},
+
+	EmptyNode(){ return Object.create( null );}
+};
+
+function RanObj( config = {} ){
+	const proto = _.createObject( BaseNodeMaker, ObjNodeMaker ),
+		  NodeBuilder = _.createObject( proto, config )
+		  ;
+
+	return () => NodeBuilder.Builder( NodeBuilder.maxDepth-1 );
 }
 
-module.exports = {RanObj, RanBool, RanStr,RanInt,RanDateStr,RanElement};
+function RanTree( config = {} ){
+	config.addChildren = function( node, children ){node.children = children;};
+
+	const ranName = RanStr();
+	config.EmptyNode = function(){
+		const node = this.objNode.EmptyNode();
+		node.name = ranName();
+		return node;
+	};
+
+	return RanObj( config );
+}
+
+module.exports = { RanObj, RanTree, RanBool, RanStr, RanInt, RanDateStr, RanElement };
 

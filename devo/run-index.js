@@ -4,7 +4,7 @@
  *@module run-ranTree
  */
 
-const {RanObj, RanElement} = require('./../index'),
+const {RanObj,RanTree, RanElement} = require('./../index'),
 		{printNode}=require('./../_')
 		;
 
@@ -25,9 +25,12 @@ const {RanObj, RanElement} = require('./../index'),
 //
 //obj
 
-let ranObj = RanObj({maxDepth:10, maxWidth:10});
-let o=ranObj();
-console.log(printNode(o));
+// let ranObj = RanObj({maxDepth:10, maxWidth:10});
+// let o=ranObj();
+// console.log(printNode(o));
 
+let ranTree = RanTree({maxDepth:10, maxWidth:10});
+let t=ranTree();
+console.log(printNode(t));
 let x=1;
 
