@@ -21,8 +21,25 @@ function isObject( x ){
 		  ;
 }
 
-function arrayMapFill(n,mapFcn){
-	return n>0? Array(n).fill().map(mapFcn):[];
+/**
+ * Return an array with n elements set to value;
+ * If a value provider fcn is supplied for the value param, it will
+ * be invoked for each element.  The fcn is passed all the array
+ * parameters supplied by Array.prototype.map
+ *
+ * @param n
+ * @param {*|Function} value
+ * @return {*}
+ */
+function fillArray(n,value /*value or fcn*/){
+	if(n<1){return [];}
+
+	if(isFunction(value)){
+		let mapFcn=value;
+		return Array(n).fill().map((...args)=>mapFcn(...args));
+	}
+
+	return Array(n).fill(value);
 }
 
 /**
@@ -84,4 +101,4 @@ function printNode(node, depth=0){
 										;
 }
 
-module.exports = {isObject,isFunction, arrayMapFill, completeAssign, createObject, printNode};
+module.exports = {isObject,isFunction,  fillArray, completeAssign, createObject, printNode};
