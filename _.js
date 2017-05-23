@@ -13,11 +13,11 @@
 	return  (f)=> Boolean(f) && toString.call(f) === FSTRING;
 })();
 
-function isObject( x ){
-	return Boolean(x)
-		  && !(x instanceof String)
-		  && !(x instanceof Function)
-		  && Object( x ) === x
+function isObject( o ){
+	return Boolean(o)
+		  && !(o instanceof String)
+		  && !isFunction(o)
+		  && Object( o ) === o
 		  ;
 }
 
@@ -45,7 +45,10 @@ function fillArray(n,value /*value or fcn*/){
 /**
  * Shallow copy of enumerable, own properties onto the target object
  * Copies full descriptors - that is it includes properties
- * indexed by Symbols and get/set accessors.
+ * indexed by Symbols and get/set accessors.  
+ *
+ * Properties are assigned from left to right. The rightmost source
+ * overwrites those to the left of it.
  *
  * developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
  *
@@ -56,17 +59,16 @@ function fillArray(n,value /*value or fcn*/){
 function completeAssign(target, ...sources) {
 
   sources.forEach(src => {
-    let descriptors = Object.keys(src).reduce((desc, key) => {
+
+    const descriptors = Object.keys(src).reduce((desc, key) => {
       desc[key] = Object.getOwnPropertyDescriptor(src, key);
       return desc;
     }, {});
 
     // by default, Object.assign copies enumerable Symbols too
     Object.getOwnPropertySymbols(src).forEach(sym => {
-      let descriptor = Object.getOwnPropertyDescriptor(src, sym);
-      if (descriptor.enumerable) {
-        descriptors[sym] = descriptor;
-      }
+      const desc = Object.getOwnPropertyDescriptor(src, sym);
+      if (desc.enumerable) { descriptors[sym] = desc; }
     });
 
     Object.defineProperties(target, descriptors);
@@ -75,9 +77,10 @@ function completeAssign(target, ...sources) {
   return target;
 }
 
+
 /**
  * Extended version of Object.create.  Copies properties of the mixin
- * objects onto the new prototype
+ * objects onto the new prototype.  Uses completeAssign.
  *
  * @param proto
  * @param mixins
@@ -88,6 +91,13 @@ function createObject(proto,...mixins){
 	return completeAssign(o,...mixins);
 }
 
+/**
+ * Utility to print the results from one of the random object generateros
+ *
+ * @param node
+ * @param depth - do not assign a value in the top level call.
+ * @return {string}
+ */
 function printNode(node, depth=0){
 	const indent = ' '.repeat(depth*3);
 	let str = Object.keys(node).reduce((pv,key)=>{
@@ -101,4 +111,11 @@ function printNode(node, depth=0){
 										;
 }
 
-module.exports = {isObject,isFunction,  fillArray, completeAssign, createObject, printNode};
+module.exports = {
+			isObject,
+			isFunction,
+			fillArray,
+			completeAssign,
+			createObject,
+			printNode
+ };

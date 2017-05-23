@@ -35,86 +35,108 @@ function RanDigits( nDigits = 6 ){
 	return function(){
 		let rnd = rand();
 		while(rnd=rand(), rnd<0.1); 
-		return Math.floor( rnd*scale );
+		return ( rnd*scale|0) ;
 	};
 }
 
+function RanHexDigits(nDigits) {
+    const scale = Math.pow(16, nDigits)
+      , min = 1 / 16;
+
+    return function() { 
+        let rnd;
+        while ((rnd = rand()) < min);
+
+        return (rnd * scale | 0).toString(16);
+    };
+}
+
 /**
- * Random integer between max & min
- * @param min
- * @param max
- * @return {function(): number} - factory for random ints.
- * @constructor
- */
+* Random integer between max & min
+* @param min
+* @param max
+* @return {function(): number} - factory for random ints.
+* @constructor
+*/
 function RanInt({min=0,max=1000}={}){
 	const diff=max-min;
-	return ()=>Math.floor(min+rand()*diff);
+	return ()=>min+rand()*diff|0;
 }
 
 function RanDateStr( { start = new Date( '01/01/1000' ), end = new Date( '01/01/3000' ) }={} ){
 	const startMs = start.getTime(),
-		  spanMs = end.getTime()-startMs
-		  ;
+	spanMs = end.getTime()-startMs
+	;
 	return function(){
 		const d = new Date( startMs+rand()*spanMs ),
-			  [year,month,day] = d.toJSON().split( /-|T/ )
-			  ;
+		[year,month,day] = d.toJSON().split( /-|T/ )
+		;
 
 		return `${month}/${day}/${year}`;
 	};
 }
 
+function RanGuid(){
+    const hex4 = RanHexDigits(4),
+          hex8 = ()=>`${hex4()}${hex4()}`,
+          hex12 = ()=>`${hex8()}${hex4()}`
+          ;
+    return ()=> `${hex8()}-${hex4()}-${hex4()}-${hex4()}-${hex12()}`;
+}
+
+
 /**
- *
- * @param array
- * @param weights
- * @return {Function}
- * @constructor
- */
+*
+* @param array
+* @param weights
+* @return {Function}
+* @constructor
+*/
 function RanElement( array, weights ){
 	if( !(array && array.length ) ){
 		throw new RangeError( 'array parameter undefined or empty' );
-	}
-
-	const len = array.length;
+	} 
 
 	//uniform probability weights.......................
 	if( !(weights && weights.length) ){
 		return function(){
-			const index = Math.floor( rand()*len );
+			const index =  rand()*len | 0;
 			return array[index];
 		};
 	}
 
-	if( weights.length !== len ){
-		throw new RangeError( 'weights array and elements array must be the same length' );
+	const len = array.length;
+
+	if( weights.length < len ){
+		//pad the array with the last value
+		const last = weights[weigths.length-1];
+		while(weights.length<len){weights.push(last);}
 	}
 
+	if( weights.length > len ){weights.length=len;}
+
 	//build a cumulative density function vector  (cdf)
-	const summer = { sum: 0 },
-		  cumWts = weights.map( function( w ){ return this.sum += w;}, summer ),
-		  p = 1/summer.sum,
-		  cdf = cumWts.map( w => w*p )//normalize
-		  ;
+	let sum =0,
+		cumWts = weights.map(  w=> sum += w ),
+		p = 1/sum,
+		cdf = cumWts.map( w => w*p )//normalize
+		;
 
 	return function(){
-		const r = rand(),
-			  index = cdf.findIndex( e => e > r )
-			  ;
-
+		let index = cdf.findIndex( e => e > rand() ) ; 
 		return array[index];
 	};
 
 }
 
 /**
- *
- * @param context
- * @param funcs
- * @param wts
- * @return {Function}
- * @constructor
- */
+*
+* @param context
+* @param funcs
+* @param wts
+* @return {Function}
+* @constructor
+*/
 function RanCall( context, funcs, wts ){
 	if( !funcs.every( _.isFunction ) ){
 		throw new TypeError( `non function value in funcs array` );
@@ -129,9 +151,9 @@ function RanCall( context, funcs, wts ){
 }
 
 /**
- * Base prototype for random objects generator.
- * @type {{baseNode, maxDepth: number, maxWidth: number, propName: *, NodeMaker: ((depth)), addChildren: ((node, list)), newChildren: ((nChildren, depth)), EmptyNode: (()), childList, childWeights}}
- */
+* Base prototype for random objects generator.
+* @type {{baseNode, maxDepth: number, maxWidth: number, propName: *, NodeMaker: ((depth)), addChildren: ((node, list)), newChildren: ((nChildren, depth)), EmptyNode: (()), childList, childWeights}}
+*/
 const baseNodeProto = {
 	get baseNode(){ return baseNodeProto;},
 	maxDepth: 5,
@@ -143,8 +165,8 @@ const baseNodeProto = {
 
 		if( depth > 0 ){
 			const nProps = Math.round( rand()*this.maxWidth ),
-				  children = this.newChildren( nProps, depth-1 )
-				  ;
+			children = this.newChildren( nProps, depth-1 )
+			;
 			this.addChildren( node, children );
 		}
 
@@ -184,22 +206,22 @@ const baseNodeProto = {
 };
 
 /**
- *  Factory Factory Factory.
- *  Returns a factory factory function that accepts a configuration object
- *  and returns factory function that makes random objects
- * @param proto
- * @return {Function}
- * @constructor
- */
+*  Factory Factory Factory.
+*  Returns a factory factory function that accepts a configuration object
+*  and returns factory function that makes random objects
+* @param proto
+* @return {Function}
+* @constructor
+*/
 function Init( proto ){
 
 	/**
-	 * Factory Factory
-	 */
+	* Factory Factory
+	*/
 	return function( config = {} ){
 		const obj = _.createObject( proto, config ),
-			  depth = obj.maxDepth-1
-			  ;
+		depth = obj.maxDepth-1
+		;
 
 		//Factory
 		return ( _depth = depth ) => obj.NodeMaker( _depth );
@@ -207,20 +229,20 @@ function Init( proto ){
 }
 
 /**
- * RanObj  - generates a random object whose properties are randomly selected
- *  from  childList
- * @type {Object}
- */
+* RanObj  - generates a random object whose properties are randomly selected
+*  from  childList
+* @type {Object}
+*/
 const objNodeProto = _.createObject( baseNodeProto, {
 
 	get objNode(){return objNodeProto; },
 	//
 	// List of factory functions for random selection
 	get childList(){
-		return [this.NodeMaker, RanDigits(), RanStr(), RanBool(), RanDateStr()];
+		return [this.NodeMaker, RanDigits(), RanStr(), RanBool(), RanDateStr(), RanGuid()];
 	},
 	// Weight the selection from  'childList'
-	childWeights: [3, 1, 1, 1, 1],//[] for uniform weights
+	childWeights: [3, 1, 1, 1, 1,8],//[] for uniform weights
 
 	newChildren( n, depth ){
 		const ranChild = RanCall( this, this.childList, this.childWeights );
@@ -247,26 +269,26 @@ const objNodeProto = _.createObject( baseNodeProto, {
 } );
 
 /**
- * Factory Factory.  Accepts a configuration object
- * and returns a factory function that generates random
- * objects
- * @type {Function}
- */
+* Factory Factory.  Accepts a configuration object
+* and returns a factory function that generates random
+* objects
+* @type {Function}
+*/
 const RanObj = Init( objNodeProto );
 
 /**
- * Random Tree.  Nodes have a name property and an array of
- * child nodes.  Child nodes are generated by functions
- * randomly selected from chidlList
- *
- * @type {Object}
- */
+* Random Tree.  Nodes have a name property and an array of
+* child nodes.  Child nodes are generated by functions
+* randomly selected from chidlList
+*
+* @type {Object}
+*/
 const treeNodeProto = _.createObject( objNodeProto, {
 	addChildren: function( node, children ){node.children = children;},
 
 	EmptyNode: function(){
 		const ranName = RanStr(),
-			  baseEmptyNode = this.objNode.EmptyNode;
+		baseEmptyNode = this.objNode.EmptyNode;
 
 		this.EmptyNode = function(){
 			const node = baseEmptyNode();
@@ -279,15 +301,15 @@ const treeNodeProto = _.createObject( objNodeProto, {
 } );
 
 /** Factory Factory.  Accepts a configuration object
- * and returns a factory function that generates random
- * objects
- */
+* and returns a factory function that generates random
+* objects
+*/
 const RanTree = Init( treeNodeProto );
 
 
 /**
- *
- */
+*
+*/
 const arrayNodeProto = _.createObject(objNodeProto,{
 	EmptyNode(){ return [];},
 
@@ -299,17 +321,27 @@ const arrayNodeProto = _.createObject(objNodeProto,{
 
 	get childList(){
 		const {maxDepth,maxWidth}=this,
-				ranObj=RanObj({maxDepth,maxWidth}),
-				// list = this.objNode.childList.concat([ranObj])//new array
-				list =  [this.NodeMaker, ranObj, RanDigits(), RanStr(), RanBool(), RanDateStr()];
-				;
+		ranObj=RanObj({maxDepth,maxWidth}),
+		list =  [this.NodeMaker, ranObj, RanDigits(), RanStr(), RanBool(), RanDateStr()];
+		;
 		Object.defineProperty(this,'childList',{value:list});
 		return this.childList;
 	},
-	childWeights:[5,3,1,1,1,1]
+	childWeights:[5,3,1,1,1,1,1]
 });
 
 const RanArray = Init(arrayNodeProto);
 
-module.exports = { RanObj, RanTree, RanArray, RanBool, RanStr, RanInt, RanDigits, RanDateStr, RanElement };
+module.exports = {
+	RanObj,
+	RanTree,
+	RanArray,
+	RanBool,
+	RanStr,
+	RanInt,
+	RanDigits,
+	RanDateStr,
+	RanGuid,
+	RanElement 
+ };
 
